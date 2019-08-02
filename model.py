@@ -30,7 +30,7 @@ class BaseModel(object):
 			model: TRAIN | EVAL | INFER
 			scope: scope of the model
 		"""
-		#TODO define a function to load the parameters
+		self._load_parameters(hparams, mode, scope)
 		#TODO build graph, however, do not implement here
 		
 		self.saver = tf.train.Saver(
@@ -59,9 +59,6 @@ class BaseModel(object):
 
 		self.batch_size = tf.size(self.seq_length_encoder_intput_data)
 
-		self.src_vocab_size = hparams.src_vocab_size
-		self.tgt_vocab_size = hparams.tgt_vocab_size
-
 		self.num_units = hparams.num_units
 		self.num_encoder_layer = hparams.num_encoder_layer
 		self.num_decoder_layer = hparams.num_decoder_layer
@@ -71,5 +68,17 @@ class BaseModel(object):
 			hparams.init_name, hparams.random_seed, hparams.init_weight)
 		tf.get_variable_scope().set_initializer(initializer)
 
-		# TODO create embedding matrix
+		# create embedding layer
+		self.src_vocab_size = hparams.src_vocab_size
+		self.tgt_vocab_size = hparams.tgt_vocab_size
+		self.share_vocab = hparams.share_vocab
+		self._init_embeddings()
+	
+	def _init_embeddings(self):
+		self.embedding_encoder, self.embedding_decoder = \
+			create_emb_for_encoder_and_decoder(
+				src_vocab_size=self.src_vocab_size,
+				tgt_vocab_size=self.tgt_vocab_size,
+				embed_size=self.num_units,
+				share_vocab=self.share_vocab)
 
