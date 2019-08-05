@@ -15,6 +15,7 @@ sys.path.insert(0, str(cur_path))
 
 import abc
 import tensorflow as tf
+import collections
 
 from model_helper import *
 
@@ -23,6 +24,18 @@ from utils.log import log_error as _error
 
 def get_specific_scope_params(scope=''):
 	return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
+
+class TrainOutputTuple(collections.namedtuple(
+	'TrainOutputTuple', ('train_summary', 'train_loss', 'learning_rate'))):
+	pass
+
+class EvalOutputTuple(collections.namedtuple(
+	'EvalOutputTuple', ('eval_loss'))):
+	pass
+
+class InferOutputTuple(collections.namedtuple(
+	'InferOutputTuple', ('sample_id'))):
+	pass
 
 class BaseModel(object):
 	"""Base Model, in order to be inheritted
@@ -341,3 +354,35 @@ class BaseModel(object):
 	def _get_infet_summary(self, hparams):
 		del hparams
 		return tf.no_op()
+	
+	def train(self, sess, realv):
+		assert self.mode == 'TRAIN'
+		feed = {self.encoder_input_data:realv[0],
+				self.decoder_input_data:realv[1],
+				self.decoder_output_data:realv[2],
+				self.seq_length_encoder_intput_data:realv[3],
+				self.seq_length_decoder_input_data:realv[4]}
+
+		output_tuple = TrainOutputTuple(
+			train_summary=self.train_summary,
+			train_loss=self.train_loss,
+			learning_rate=self.learning_rate)
+
+		return sess.run([self.update, output_tuple], feed_dict=feed)
+	
+	def eval(self, sess, realv):
+		assert self.mode == 'EVAL'
+		feed = {self.encoder_input_data:realv[0],
+				self.decoder_input_data:realv[1],
+				self.decoder_output_data:realv[2],
+				self.seq_length_encoder_intput_data:realv[3],
+				self.seq_length_decoder_input_data:realv[4]}
+		output_tuple = EvalOutputTuple(eval_loss=self.eval_loss)
+		return sess.run(output_tuple, feed_dict=feed)
+	
+	def infer(self, sess, realv):
+		assert self.mode == 'INFER'
+		feed = {self.encoder_input_data:realv[0],
+				self.seq_length_encoder_intput_data:realv[3]}
+		output_tuple = InferOutputTuple(sample_id=self.sample_id)
+		return sess.run(output_tuple, feed_dict=feed)
