@@ -53,5 +53,8 @@ def create_emb_for_encoder_and_decoder(src_vocab_size, tgt_vocab_size, embed_siz
                     'embedding_decoder', [tgt_vocab_size, embed_size], dtype=tf.float32)
             return embedding_encoder, embedding_decoder
 
+def create_rnn_cell(unit_type, num_units, num_layers,)
+
+
 if __name__ == "__main__":
     get_initializer('dad')

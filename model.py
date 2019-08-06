@@ -276,6 +276,11 @@ class BaseModel(object):
 			maximum_iterations = tf.to_int32(tf.round(
 				tf.to_float(max_encoder_length) * decoding_length_factor))
 		return maximum_iterations
+
+	def _build_encoder_cell(self, hparams, num_layers, num_residual_layers):
+		return create_rnn_cell(
+			unit_type=hparams.unit_type,
+			num_)
 	
 	@abc.abstractmethod
 	def _build_decoder_cell(self, hparams, encoder_outputs, encoder_state):
@@ -391,10 +396,31 @@ class Model(BaseModel):
 	"""Seq2Seq dynamic model
 	"""
 	def _build_encoder(self, hparams):
+		"""Implement the function from the base
+		"""
 		_info('Build a encoder')
-	 	return self._build_encoder_from_sequence(
-			 hparams)
+		return self._build_encoder_from_sequence(hparams)
 		
 	def _build_encoder_from_sequence(self, hparams):
-		#TODO
-		pass
+		"""Build an encoder from a sequence
+
+		Args:
+			hparams: hyperparameters
+		
+		Returns:
+			encoder_outputs: RNN encoder outputs
+			encoder_state: RNN encoder state
+		
+		Raises:
+			ValueError: if encoder_type is neither 'uni' nor 'bi'
+		"""
+		num_layers = hparams.num_encoder_layer
+		num_residual_layers = num_layers - 1
+
+		with tf.variable_scope('encoder') as scope:
+			self.encoder_emb_inp = tf.nn.embedding_lookup(self.embedding_encoder, self.encoder_input_data)
+
+			#Encoder outputs
+			if hparams.encode_type == 'uni':
+				_info('num_layers={}, num_residual_layers={}'.format(num_layers, num_residual_layers))
+				cell = self._build_encoder_cell(hparams, num_layers, num_residual_layers)
