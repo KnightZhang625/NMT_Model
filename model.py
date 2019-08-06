@@ -386,3 +386,15 @@ class BaseModel(object):
 				self.seq_length_encoder_intput_data:realv[3]}
 		output_tuple = InferOutputTuple(sample_id=self.sample_id)
 		return sess.run(output_tuple, feed_dict=feed)
+
+class Model(BaseModel):
+	"""Seq2Seq dynamic model
+	"""
+	def _build_encoder(self, hparams):
+		_info('Build a encoder')
+	 	return self._build_encoder_from_sequence(
+			 hparams)
+		
+	def _build_encoder_from_sequence(self, hparams):
+		#TODO
+		pass
