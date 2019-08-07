@@ -54,10 +54,11 @@ class BaseModel(object):
         # TODO 1. parse the hparams
         # TODO 2. build the graph
         # TODO 3. Saver
-    
+        pass
+        
     def _set_params_initializer(self):
     # TODO
-    pass
+        pass
 
 if __name__ == '__main__':
     t = TrainOutputTuple(a='a', b='bb', c='ccc')
