@@ -83,6 +83,12 @@ def create_rnn_cell(unit_type,
                     dropout,
                     mode):
     """Create multi-layer RNN cell
+
+    Returns:
+        An RNN cell lists
+    
+    Raises:
+        ValueError: Unknown unit type
     """
     cell_list = _create_cell_list(unit_type=unit_type,
                                   num_units=num_units,
@@ -91,6 +97,10 @@ def create_rnn_cell(unit_type,
                                   forget_bias=forget_bias,
                                   dropout=dropout,
                                   mode=mode)
+    if len(cell_list) == 1:
+        return cell_list[0]
+    else:
+        return tf.nn.rnn_cell.MultiRNNCell(cell_list)
     
 def _create_cell_list(unit_type,
                       num_units,
@@ -100,15 +110,13 @@ def _create_cell_list(unit_type,
                       dropout,
                       mode):
     cell_list = []
-    for i in range(num_layers):
-        _info('Building {}th cell'.format(i))
-        cell = _create_single_cell(
-            unit_type=unit_type,
-            num_units=num_units,
-            forget_bias=forget_bias,
-            dropout=dropout,
-            mode=mode,
-            resudual_or_not=(i >= num_layers - num_residual_layers))
+    return [_create_cell_list(unit_type=unit_type,
+                      num_units=num_units,
+                      forget_bias=forget_bias,
+                      dropout=dropout,
+                      mode=mode,
+                      resudual_or_not=(i >= num_layers - num_residual_layers))
+            for _ in range(num_layers)]
 
 def _create_single_cell(unit_type,
                         num_units,
@@ -117,9 +125,11 @@ def _create_single_cell(unit_type,
                         mode,
                         residual_or_not):
     """Create a cell
+        create a single cell, wrap with dropout and residual layer
     """
     dropout = dropout if mode == 'train' else 0.and
 
+    # 1. create a single cell first
     if unit_type == 'lstm':
         _info(' build lstm cell')
         cell = tf.nn.rnn_cell.BasicLSTMCell(num_units, forget_bias=forget_bias)
@@ -128,7 +138,19 @@ def _create_single_cell(unit_type,
         cell = tf.nn.rnn_cell.GRUCell(num_units)
     else:
         _error('Unknow unit type : {}'.format(unit_type))
+        raise ValueError
     
+    # Dropout
+    if dropout > 0:
+        cell = tf.nn.rnn_cell.DropoutWrapper(cell=cell, input_keep_prob=(1.0-dropout))
+        _info(' add dropout = {}'.format(dropout))
+    
+    # Residual
+    if residual_or_not:
+        cell = tf.nn.rnn_cell.ResidualWrapper(cell=cell)
+        _info(' add residual')
+    
+    return cell
 
 if __name__ == "__main__":
     get_initializer('dad')
