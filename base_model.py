@@ -76,6 +76,7 @@ class BaseModel(object):
 			self.pre_train = hparams.pre_train
 		else:
 			self.enable_vae = False
+			self.pre_train = False
 		self.dtype = tf.float32
 		self.global_step = tf.Variable(0, trainable=False)
 
@@ -92,13 +93,14 @@ class BaseModel(object):
 			tf.int32, [None], name='seq_length_decoder_input_data')
 		
 		# load some important hparamters
+		self.unit_type = hparams.unit_type
 		self.num_units = hparams.num_units
 		self.num_encoder_layers = hparams.num_encoder_layers
 		self.num_decoder_layers = hparams.num_decoder_layers
 		self.num_encoder_residual_layers = self.num_encoder_layers - 1
 		self.num_decoder_residual_layers = self.num_decoder_layers - 1
 
-		self.batch_size = hparams.batch_size
+		self.batch_size = tf.size(self.seq_length_encoder_intput_data)
 
 		# set initializer
 		random_seed = hparams.random_seed
@@ -191,7 +193,7 @@ class BaseModel(object):
 			# Gradients
 			gradients = tf.gradients(self.loss, params)
 			clipped_gradients, _ = tf.clip_by_global_norm(
-				gradients, max_gradient_norm=5.0)
+				gradients, 5.0)
 			self.update = opt.apply_gradients(zip(clipped_gradients, params), global_step=self.global_step)
 		
 	def _build_encoder(self, hparams):
@@ -329,7 +331,7 @@ class BaseModel(object):
 			decoding_length_factor = 3.0
 			max_encoder_length = tf.reduce_max(self.seq_length_decoder_input_data)
 			maximum_iterations = tf.to_int32(tf.round(
-				tf.to_float(max_encoder_length) * decoder_length_factor))
+				tf.to_float(max_encoder_length) * decoding_length_factor))
 		return maximum_iterations
 	
 	def _build_decoder(self, encoder_outputs, encoder_state, hparams):
@@ -352,10 +354,9 @@ class BaseModel(object):
 
 		# Decoder
 		with tf.variable_scope('decoder') as decoder_scope:
-			cell, decoder_initial_state = self._build_decoder_cell(
-				hparams, encoder_outputs, encoder_state)
+			cell, decoder_initial_state = self._build_decoder_cell(hparams, encoder_state)
 			
-			logits = tf.np_op()
+			logits = tf.no_op()
 			decoder_outputs = None
 
 			# Train or Eval
@@ -430,7 +431,7 @@ class BaseModel(object):
 
 		return logits, sample_id, final_context_state
 
-	def _build_decoder_cell(self, encoder_state):
+	def _build_decoder_cell(self, hparams, encoder_state):
 		"""build RNN cell
 		"""
 		if hparams.attention:
@@ -443,7 +444,7 @@ class BaseModel(object):
 			num_residual_layers=self.num_decoder_residual_layers,
 			forget_bias=hparams.forget_bias,
 			dropout=hparams.dropout,
-			model=self.mode)
+			mode=self.mode)
 		
 		if self.mode == 'infer' and hparams.infer_mode == 'beam_search':
 			decoder_initial_state = tf.contrib.seq2seq.tile_batch(
@@ -453,29 +454,34 @@ class BaseModel(object):
 		
 		return cell, decoder_initial_state
 
-	def _vae_loss(self):
-		return -0.5 * tf.reduce_sum(1.0 + self.logVar_pre_train - tf.square(self.mean_pre_train) - tf.exp(self.logVar_pre_train)) / self.batch_size * 0.001	
+	def _vae_loss(self, bs):
+		return -0.5 * tf.reduce_sum(1.0 + self.logVar_pre_train - tf.square(self.mean_pre_train) - tf.exp(self.logVar_pre_train)) / bs * 0.001	
 	
 	def _compute_loss(self, logtis):
 		"""Compute loss"""
 		# compute cross-entropy loss
 		max_time = tf.shape(self.decoder_output_data)[1]
 		ce_loss = tf.nn.sparse_softmax_cross_entropy_with_logits(
-			labels=self.decoder_output_data, logtis=logtis)
+			labels=self.decoder_output_data, logits=logtis)
 		target_weights = tf.sequence_mask(
 			self.seq_length_decoder_input_data,
 			max_time,
 			dtype=tf.float32)
-		ce_loss_clear = tf.reduce_sum(ce_loss * target_weights) / self.batch_size
+
+		# convert to tf.float, otherwise, the following code will not be executed
+		bs = tf.cast(self.batch_size, tf.float32)
+		ce_loss_clear = tf.reduce_sum(ce_loss * target_weights) / bs
+		loss_per_token = ce_loss_clear / tf.reduce_sum(target_weights)
 
 		# vae loss
-		kl_loss = tf.cond(self.pre_train, lambda : self._vae_loss, lambda: 0.)
-
-		# total loss
-		loss_per_token = ce_loss_clear / tf.reduce_sum(target_weights)
-		loss = ce_loss_clear + kl_loss
+		if self.enable_vae:
+			kl_loss = tf.cond(self.pre_train, lambda : self._vae_loss(bs), lambda : 0.)
+			loss = ce_loss_clear + kl_loss
+			return loss, loss_per_token, kl_loss
+		else:
+			loss = ce_loss_clear
+			return loss, loss_per_token, 0.
 		
-		return loss, loss_per_token, kl_loss
 
 	def _get_learning_rate_warmup_decay(self, hparams):
 		"""warmup or decay learning rate"""
@@ -508,6 +514,7 @@ class BaseModel(object):
 					 self.decoder_output_data: realv[2],
 					 self.seq_length_encoder_intput_data: realv[3],
 					 self.seq_length_decoder_input_data: realv[4]}
+
 		return sess.run([self.update, output_tuple], feed_dict=feed_dict)
 	
 	def eval(self, sess, realv):
@@ -545,11 +552,15 @@ if __name__ == '__main__':
 	global_graph = tf.Graph()
 	with global_graph.as_default():
 		model = BaseModel(hyper, 'train')
+		init = tf.global_variables_initializer()
+		local_init = tf.local_variables_initializer()
+		table_init = tf.tables_initializer()
 		with tf.Session(graph=global_graph) as sess:
-			init = tf.global_variables_initialzer()
-			local_init = tf.local_variables_initializer()
-			table_init = tf.table_initializer()
+
 			sess.run([init, local_init, table_init])
 
-			feed_data = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
-			res = model.train(sess, feed_data)
+			for i in range(100):
+
+				feed_data = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
+				res = model.train(sess, feed_data)
+				print('Step {} Loss : {:.2f}'.format(res[1].global_step, res[1].train_loss))

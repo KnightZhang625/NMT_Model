@@ -16,34 +16,43 @@ class HyperParameters(NoNewAttrs):
     init_weight = 0.1
 
     # Learning rate
-    learning_rate = 1e-6
+    learning_rate = 0.1
     lr_limit = 1e-6
     decay_rate = 0.99
     random_seed = None
+    warm_steps = 0
+
+    # Update
+    optimizer = 'adam'
+    max_gradient_norm=5.0
+    num_keep_ckpts = 5
 
     # Encocer & Decoder
-    num_encoder_layers = 4
-    num_decoder_layers = 4
+    num_encoder_layers = 2
+    num_decoder_layers = 2
     tgt_max_len_infer = None
-
-    num_units = int(1024)
-    residual = True
-    time_major = True
-    src_vocab_size = 7819
-    tgt_vocab_size = 7819
-    embedding_size = 320
     encoder_type = 'bi'
     unit_type = 'gru'
-    attention_mode = None
-    dropout = 0.2
+    num_units = int(16)
+
+    attention = None
+
+    residual = True
+    dropout = 0.0
     forget_bias = 1.0
+    src_vocab_size = 7819
+    tgt_vocab_size = 7819
+    embedding_size = 16
+
+    # VAE
+    enable_vae = False
+    pre_train = False
+
     share_vocab = True
-    max_len_infer = None
     beam_width = 0
     length_penalty_weight = 1.0
     out_dir = './models'
-    enable_vae = False
-    pre_train = False
+
     sos_id = 0
     eos_id = 1
 
