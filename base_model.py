@@ -481,7 +481,6 @@ class BaseModel(object):
 		else:
 			loss = ce_loss_clear
 			return loss, loss_per_token, 0.
-		
 
 	def _get_learning_rate_warmup_decay(self, hparams):
 		"""warmup or decay learning rate"""
