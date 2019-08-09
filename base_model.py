@@ -125,7 +125,7 @@ class BaseModel(object):
 	def build_graph(self, hparams, scope):
 		_info('Start build {} graph ...'.format(self.mode))
 
-		with tf.variabel_scope('decoder/output'):
+		with tf.variable_scope('decoder/output'):
 			self.output_layer = tf.layers.Dense(
 				self.tgt_vocab_size, use_bias=False, name='output_layer')
 
@@ -138,7 +138,7 @@ class BaseModel(object):
 			# if using naive 'if else', the variable in fine tune will not be built actually,
 			# so that the restore will not be successful when change the pre_train to False,
 			# it is necessarry to use tf.cond
-			if sefl.enable_vae:
+			if self.enable_vae:
 				encoder_state = tf.cond(self.pre_train, 
 										lambda : self._vae_pre_train(encoder_state), 
 										lambda : self._vae_fine_tune(encoder_state))
@@ -211,8 +211,8 @@ class BaseModel(object):
 		num_layers = self.num_encoder_layers
 		num_redisual_layers = self.num_encoder_residual_layers
 
-		with tf.variable_scope('encoder') as scope:
-			self.encoder_emb_inp = tf.embedding_loopup(self.embedding_encoder, self.encoder_input_data)
+		with tf.variable_scope('encoder') as _:
+			self.encoder_emb_inp = tf.nn.embedding_lookup(self.embedding_encoder, self.encoder_input_data)
 
 			if hparams.encoder_type == 'uni':
 				_info('num_layers = {} num_residual_layers = {}'.format(num_layers, num_redisual_layers))
@@ -243,6 +243,7 @@ class BaseModel(object):
 				bi_outputs, bi_state = tf.nn.bidirectional_dynamic_rnn(
 					cell_fw,
 					cell_bw,
+					self.encoder_emb_inp,
 					dtype=self.dtype,
 					sequence_length=self.seq_length_encoder_intput_data,
 					swap_memory=True)
@@ -269,7 +270,7 @@ class BaseModel(object):
 			unit_type=hparams.unit_type,
 			num_units=self.num_units,
 			num_layers=num_layers,
-			num_residual_layers=num_residual_layers
+			num_residual_layers=num_residual_layers,
 			forget_bias=hparams.forget_bias,
 			dropout=hparams.dropout,
 			mode=self.mode)
@@ -345,7 +346,7 @@ class BaseModel(object):
 			ValueError: Unknown infer mode
 		"""
 		tgt_sos_id = tf.cast(tf.constant(hparams.sos_id), tf.int32)
-    	tgt_eos_id = tf.cast(tf.constant(hparams.eos_id), tf.int32)
+		tgt_eos_id = tf.cast(tf.constant(hparams.eos_id), tf.int32)
 
 		maximum_iterations = self._get_infer_maximum_iterations(hparams)
 
@@ -453,7 +454,7 @@ class BaseModel(object):
 		return cell, decoder_initial_state
 
 	def _vae_loss(self):
-		return -0.5 * tf.reduce_sum(1.0 + self.logVar_pre_train - tf.square(self.mean_pre_train) - tf.exp(self.logVar_pre_train)) / self.batch_size) * 0.001	
+		return -0.5 * tf.reduce_sum(1.0 + self.logVar_pre_train - tf.square(self.mean_pre_train) - tf.exp(self.logVar_pre_train)) / self.batch_size * 0.001	
 	
 	def _compute_loss(self, logtis):
 		"""Compute loss"""
@@ -494,29 +495,61 @@ class BaseModel(object):
 		# TODO
 		pass
 		
-	def train(self, sess, feed_dict):
+	def train(self, sess, realv):
 		"""Build train graph"""
 		assert self.mode == 'train'
 		output_tuple = TrainOutputTuple(train_loss=self.loss,
 										predict_count=self.predict_count,
 										global_step=self.global_step,
 										batch_size=self.batch_size,
-										self.learning_rate=learning_rate)
+										learning_rate=self.learning_rate)
+		feed_dict = {self.encoder_input_data: realv[0],
+					 self.decoder_input_data: realv[1],
+					 self.decoder_output_data: realv[2],
+					 self.seq_length_encoder_intput_data: realv[3],
+					 self.seq_length_decoder_input_data: realv[4]}
 		return sess.run([self.update, output_tuple], feed_dict=feed_dict)
 	
-	def eval(self, sess, feed_dict):
+	def eval(self, sess, realv):
 		"""Build eval graph"""
 		assert self.mode == 'eval'
 		output_tuple = EvalOutputTuple(eval_loss=self.loss,
 									   predict_count=self.predict_count,
 									   batch_size=self.batch_size)
+		feed_dict = {self.encoder_input_data: realv[0],
+					 self.decoder_input_data: realv[1],
+					 self.decoder_output_data: realv[2],
+					 self.seq_length_encoder_intput_data: realv[3],
+					 self.seq_length_decoder_input_data: realv[4]}
 		return sess.run([self.update, output_tuple], feed_dict=feed_dict)
 
-	def infer(self, sess, feed_dict):
+	def infer(self, sess, realv):
 		assert self.mode == 'infer'
 		output_tuple = InferOutputTuple(infer_logits=self.infer_logtis,
 										sample_id=self.sample_id)
+		feed_dict = {self.encoder_input_data: realv[0],
+					 self.seq_length_encoder_intput_data: realv[1]}
 		return sess.run(output_tuple,feed_dict=feed_dict)
 
 if __name__ == '__main__':
-	pass
+	import numpy as np
+	from hparameters import hyper
+
+	input_x = np.array([[10, 120, 30, 0, 0], [20, 30, 0, 0, 0], [15, 20, 30, 50, 100]])
+	seq_input_x = [3, 2, 5]
+	output_y_input = np.array([[1, 20, 10, 30, 0, 0, 0], [1, 3, 3, 4, 5, 6, 7], [1, 20, 30, 0, 0, 0, 0]])
+	output_y_output = np.array([[20, 10, 30, 2, 0, 0, 0], [3, 3, 4, 5, 6, 7, 2], [20, 30, 2, 0, 0, 0, 0]])
+	seq_output_y = [4, 7, 3]
+
+	tf.reset_default_graph()
+	global_graph = tf.Graph()
+	with global_graph.as_default():
+		model = BaseModel(hyper, 'train')
+		with tf.Session(graph=global_graph) as sess:
+			init = tf.global_variables_initialzer()
+			local_init = tf.local_variables_initializer()
+			table_init = tf.table_initializer()
+			sess.run([init, local_init, table_init])
+
+			feed_data = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
+			res = model.train(sess, feed_data)

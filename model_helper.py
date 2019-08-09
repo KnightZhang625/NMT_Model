@@ -15,7 +15,7 @@ from utils.log import log_error as _error
 __all__ = ['get_initializer', 
            'create_emb_for_encoder_and_decoder']
 
-def get_initializer(self, init_op, random_seed=None, init_weight=None):
+def get_initializer(init_op, random_seed=None, init_weight=None):
     """Set the initializer
 
     Args:
@@ -65,9 +65,9 @@ def create_emb_for_encoder_and_decoder(share_vocab,
                 _error('Source vocab size must be equal to Target vocab size, however, {} to {}'
                     .format(src_vocab_size, tgt_vocab_size))
                 raise ValueError
-                _info('Use the same embeddings for source and target')
-                embedding_encoder = tf.get_variable('embedding_shared', [src_vocab_size, src_embed_size], dtype=tf.float32)
-                embedding_decoder = embedding_encoder
+            _info('Use the same embeddings for source and target')
+            embedding_encoder = tf.get_variable('embedding_shared', [src_vocab_size, src_embed_size], dtype=tf.float32)
+            embedding_decoder = embedding_encoder
         else:
             with tf.variable_scope('encoder'):
                 embedding_encoder = tf.get_variable('embedding_encoder', [src_vocab_size, src_embed_size], dtype=tf.float32)
@@ -110,13 +110,15 @@ def _create_cell_list(unit_type,
                       dropout,
                       mode):
     cell_list = []
-    return [_create_cell_list(unit_type=unit_type,
+    for i in range(num_layers):
+        cell = _create_single_cell(unit_type=unit_type,
                       num_units=num_units,
                       forget_bias=forget_bias,
                       dropout=dropout,
                       mode=mode,
-                      resudual_or_not=(i >= num_layers - num_residual_layers))
-            for _ in range(num_layers)]
+                      residual_or_not=(i >= num_layers - num_residual_layers))
+        cell_list.append(cell)
+    return cell_list
 
 def _create_single_cell(unit_type,
                         num_units,
@@ -127,7 +129,7 @@ def _create_single_cell(unit_type,
     """Create a cell
         create a single cell, wrap with dropout and residual layer
     """
-    dropout = dropout if mode == 'train' else 0.and
+    dropout = dropout if mode == 'train' else 0.
 
     # 1. create a single cell first
     if unit_type == 'lstm':
@@ -153,4 +155,4 @@ def _create_single_cell(unit_type,
     return cell
 
 if __name__ == "__main__":
-    get_initializer('dad')
+    pass
