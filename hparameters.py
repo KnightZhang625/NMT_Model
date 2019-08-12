@@ -8,9 +8,12 @@ class HyperParameters(NoNewAttrs):
     """HyperParameters setting"""
     
     # Global
+    model_type = 'standard'
+    out_dir = './model'
+    summary_name = 'test'
     train_steps = 10000000
     batch_size = 64
-    save_batch = 3000
+    save_batch = 100
     decay_step = save_batch
     init_op = 'orthogonal'
     init_weight = 0.1
@@ -25,15 +28,16 @@ class HyperParameters(NoNewAttrs):
     # Update
     optimizer = 'adam'
     max_gradient_norm=5.0
-    num_keep_ckpts = 5
+    num_keep_ckpts = 3
 
     # Encocer & Decoder
     num_encoder_layers = 2
     num_decoder_layers = 2
-    tgt_max_len_infer = None
+    tgt_max_len_infer = 10
     encoder_type = 'bi'
     unit_type = 'gru'
     num_units = int(16)
+    infer_mode = 'greedy'
 
     attention = None
 
@@ -53,8 +57,8 @@ class HyperParameters(NoNewAttrs):
     length_penalty_weight = 1.0
     out_dir = './models'
 
-    sos_id = 0
-    eos_id = 1
+    sos_id = int(1)
+    eos_id = int(2)
 
-hyper = HyperParameters()
+hparams = HyperParameters()
 

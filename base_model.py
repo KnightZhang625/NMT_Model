@@ -32,13 +32,15 @@ import model_helper as _mh
 from utils.log import log_info as _info
 from utils.log import log_error as _error
 
+__all__ = ['BaseModel']
+
 def get_scpecific_scope_params(scope=''):
 	"""used to get specific parameters for training
 	"""
 	return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
 
 class TrainOutputTuple(collections.namedtuple('TrainOutputTuple', 
-		'train_loss predict_count global_step batch_size learning_rate')):
+		'train_loss loss_per_token kl_loss predict_count global_step batch_size learning_rate')):
 	pass
 
 class EvalOutputTuple(collections.namedtuple('EvalOutputTuple', 
@@ -152,23 +154,25 @@ class BaseModel(object):
 			if self.mode != 'infer':
 				loss, loss_per_token, kl_loss = self._compute_loss(logits)
 			else:
-				loss = 0.
+				loss, loss_per_token, kl_loss = 0, 0, 0
 		
-		return logits, sample_id, loss
+		return logits, sample_id, loss, loss_per_token, kl_loss
 
 	def _train_or_inference(self, hparams, res):
 		"""need to optimize, etc. in train,
-		   used for seperate process in train and test
+		   used for seperate process in train and infer
 		"""
 		if self.mode == 'train':
 			self.loss = res[2]
+			self.loss_per_token = res[3]
+			self.kl_loss = res[4]
 		elif self.mode == 'eval':
 			self.loss = res[2]
 		elif self.mode == 'infer':
 			self.infer_logtis, self.sample_id = res[0], res[1]
 
 		if self.mode != 'infer':
-			self.predict_count = tf.reduce_sum(self.seq_length_encoder_intput_data)
+			self.predict_count = tf.reduce_sum(self.seq_length_decoder_input_data)
 		
 		if self.enable_vae and self.pre_train:
 			params = get_scpecific_scope_params('dynamic_seq2seq/transfer')
@@ -328,6 +332,9 @@ class BaseModel(object):
 			maximum_iterations = hparams.tgt_max_len_infer
 			_info('decoding with maximum iterations {}'.format(maximum_iterations))
 		else:
+			if self.mode == 'infer':
+				_error('For Inference, tgt_max_len_infer in hparameters must set')
+				raise ValueError
 			decoding_length_factor = 3.0
 			max_encoder_length = tf.reduce_max(self.seq_length_decoder_input_data)
 			maximum_iterations = tf.to_int32(tf.round(
@@ -480,7 +487,7 @@ class BaseModel(object):
 			return loss, loss_per_token, kl_loss
 		else:
 			loss = ce_loss_clear
-			return loss, loss_per_token, 0.
+			return loss, loss_per_token, tf.constant(0.)
 
 	def _get_learning_rate_warmup_decay(self, hparams):
 		"""warmup or decay learning rate"""
@@ -504,6 +511,8 @@ class BaseModel(object):
 		"""Build train graph"""
 		assert self.mode == 'train'
 		output_tuple = TrainOutputTuple(train_loss=self.loss,
+										loss_per_token=self.loss_per_token,
+										kl_loss=self.kl_loss,
 										predict_count=self.predict_count,
 										global_step=self.global_step,
 										batch_size=self.batch_size,

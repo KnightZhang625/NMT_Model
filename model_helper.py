@@ -4,6 +4,7 @@
 
 # set the system path
 import sys
+import collections
 from pathlib import Path
 cur_path = Path(__file__).absolute().parent
 sys.path.insert(0, str(cur_path))
@@ -13,7 +14,10 @@ from utils.log import log_info as _info
 from utils.log import log_error as _error
 
 __all__ = ['get_initializer', 
-           'create_emb_for_encoder_and_decoder']
+           'create_emb_for_encoder_and_decoder',
+           'create_model']
+
+"""For Model"""
 
 def get_initializer(init_op, random_seed=None, init_weight=None):
     """Set the initializer
@@ -153,6 +157,45 @@ def _create_single_cell(unit_type,
         _info(' add residual')
     
     return cell
+
+"""For Global"""
+class Model_tuple(
+    collections.namedtuple('Model', 'model graph')):
+    pass
+
+def create_model(model_creator, hparams, mode):
+    """create model"""
+    tf.reset_default_graph()
+    graph = tf.Graph()
+    model = None
+    if mode == 'train':
+        with graph.as_default():
+            model = model_creator(hparams, 'train')
+    elif mode == 'eval':
+        with graph.as_default():
+            model = model_creator(hparams, 'eval')
+    elif mode == 'infer':
+        with graph.as_default():
+            model = model_creator(hparams, 'infer')
+    return Model_tuple(model=model, graph=graph)
+
+def create_or_load_model(model, model_dir, session):
+    """create a new model or load from the existing one"""
+    latest_ckpt = tf.train.latest_checkpoint(model_dir)
+    if latest_ckpt:
+        try:
+            model.saver.restore(session, latest_ckpt)
+        except Exception as e:
+            _error(e)
+            raise e
+        _info('Load model from {}'.format(latest_ckpt))
+    else:
+        session.run(tf.global_variables_initializer())
+        session.run(tf.local_variables_initializer())
+        session.run(tf.tables_initializer())
+        _info('Create a new model from scratch')
+    global_step = model.global_step.eval(session=session)
+    return model, global_step
 
 if __name__ == "__main__":
     pass
