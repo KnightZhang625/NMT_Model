@@ -98,19 +98,20 @@ if __name__ == '__main__':
 	output_y_output = np.array([[20, 10, 30, 2, 0, 0, 0], [3, 3, 4, 5, 6, 7, 2], [20, 30, 2, 0, 0, 0, 0]])
 	seq_output_y = [4, 7, 3]
 	
-	# datas = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
-	# train(hparams, datas)
+	datas = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
+	train(hparams, datas)
 	
-	model_creator = select_model_creator(hparams)
-	infer_model = _mh.create_model(model_creator, hparams, 'infer')
-	sess_conf = tf.ConfigProto(intra_op_parallelism_threads=8, inter_op_parallelism_threads=8)
-	sess_conf.gpu_options.allow_growth = True
-	infer_sess = tf.Session(config=sess_conf, graph=infer_model.graph)
+	# # Infer test
+	# model_creator = select_model_creator(hparams)
+	# infer_model = _mh.create_model(model_creator, hparams, 'infer')
+	# sess_conf = tf.ConfigProto(intra_op_parallelism_threads=8, inter_op_parallelism_threads=8)
+	# sess_conf.gpu_options.allow_growth = True
+	# infer_sess = tf.Session(config=sess_conf, graph=infer_model.graph)
 	
-	data = [input_x, seq_input_x]
-	with infer_model.graph.as_default():
-		loaded_infer_model, global_step = _mh.create_or_load_model(
-			infer_model.model, hparams.out_dir, infer_sess)
+	# data = [input_x, seq_input_x]
+	# with infer_model.graph.as_default():
+	# 	loaded_infer_model, global_step = _mh.create_or_load_model(
+	# 		infer_model.model, hparams.out_dir, infer_sess)
 	
-	res = loaded_infer_model.infer(infer_sess, data)
-	print(res.sample_id)
+	# res = loaded_infer_model.infer(infer_sess, data)
+	# print(res.sample_id)

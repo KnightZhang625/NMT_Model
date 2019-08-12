@@ -9,7 +9,7 @@ class HyperParameters(NoNewAttrs):
     
     # Global
     model_type = 'standard'
-    out_dir = './model'
+    out_dir = './models'
     summary_name = 'test'
     train_steps = 10000000
     batch_size = 64
@@ -55,7 +55,6 @@ class HyperParameters(NoNewAttrs):
     share_vocab = True
     beam_width = 0
     length_penalty_weight = 1.0
-    out_dir = './models'
 
     sos_id = int(1)
     eos_id = int(2)
