@@ -49,8 +49,8 @@ class HyperParameters(NoNewAttrs):
     embedding_size = 16
 
     # VAE
-    enable_vae = False
-    pre_train = False
+    enable_vae = True
+    pre_train = True
 
     share_vocab = True
     beam_width = 0

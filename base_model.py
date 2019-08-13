@@ -40,7 +40,7 @@ def get_scpecific_scope_params(scope=''):
 	return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=scope)
 
 class TrainOutputTuple(collections.namedtuple('TrainOutputTuple', 
-		'train_loss loss_per_token kl_loss predict_count global_step batch_size learning_rate')):
+		'train_loss loss_per_token kl_loss predict_count global_step batch_size learning_rate train_summary')):
 	pass
 
 class EvalOutputTuple(collections.namedtuple('EvalOutputTuple', 
@@ -143,7 +143,7 @@ class BaseModel(object):
 			# so that the restore will not be successful when change the pre_train to False,
 			# it is necessarry to use tf.cond
 			if self.enable_vae:
-				encoder_state = tf.cond(self.pre_train, 
+				encoder_state = tf.cond(tf.cast(self.pre_train, dtype=tf.bool), 
 										lambda : self._vae_pre_train(encoder_state), 
 										lambda : self._vae_fine_tune(encoder_state))
 			
@@ -163,6 +163,7 @@ class BaseModel(object):
 		   used for seperate process in train and infer
 		"""
 		if self.mode == 'train':
+			self.sample_id = res[1]
 			self.loss = res[2]
 			self.loss_per_token = res[3]
 			self.kl_loss = res[4]
@@ -174,7 +175,7 @@ class BaseModel(object):
 		if self.mode != 'infer':
 			self.predict_count = tf.reduce_sum(self.seq_length_decoder_input_data)
 		
-		if self.enable_vae and self.pre_train:
+		if self.enable_vae and not self.pre_train:
 			params = get_scpecific_scope_params('dynamic_seq2seq/transfer')
 		else:
 			params = tf.trainable_variables()
@@ -199,7 +200,12 @@ class BaseModel(object):
 			clipped_gradients, _ = tf.clip_by_global_norm(
 				gradients, 5.0)
 			self.update = opt.apply_gradients(zip(clipped_gradients, params), global_step=self.global_step)
-		
+				
+			# Summary
+			self.train_summary = tf.summary.merge(
+				[tf.summary.scalar('lr', self.learning_rate),
+				tf.summary.scalar('loss', self.loss)])
+
 	def _build_encoder(self, hparams):
 		"""Build the encoder and return the encoding outputs
 
@@ -289,7 +295,12 @@ class BaseModel(object):
 			sample_norm_shape = tf.shape(encoder_state)
 			z = func(self, encoder_state, sample_norm_shape)
 			_info('finish sample z: {}'.format(z))
-			return tuple(tf.tranpose(z, [1, 0, 2]))		# [num_layers, batch, hidden]
+			
+			# the naive tf only supports this way to concatenate the tensor
+			state = []
+			for i in range(self.num_encoder_layers):
+				state.append(z[:, i, :])
+			return tuple(state)				# (num_layers * [batch, hidden])
 		return _combine_encoder_state_inner
 
 	@_combine_encoder_state
@@ -298,12 +309,12 @@ class BaseModel(object):
 		self = args[0]
 		encoder_state= args[1]
 		sample_norm_shape = args[2]
-		with tf.variabel_scope('pre_train'):
+		with tf.variable_scope('pre_train'):
 			self.mean_pre_train_matrix = tf.layers.Dense(self.num_units, activation=tf.nn.relu)
 			self.logVar_pre_train_matrix = tf.layers.Dense(self.num_units, activation=tf.nn.relu)
 			self.mean_pre_train = self.mean_pre_train_matrix(encoder_state)
 			self.logVar_pre_train = self.logVar_pre_train_matrix(encoder_state)
-		eps = tf.random_normal([sample_norm_shape[0], sample_norm_shape[1], self.num_units], 0.0, 1.0, dtypt=tf.float32)		
+		eps = tf.random_normal([sample_norm_shape[0], sample_norm_shape[1], self.num_units], 0.0, 1.0, dtype=tf.float32)		
 		z = self.mean_pre_train + tf.exp(0.5 * self.logVar_pre_train) * eps
 		return z
 
@@ -316,12 +327,12 @@ class BaseModel(object):
 		with tf.variable_scope('pre_train', reuse=True):
 			mean_fine_tune = self.mean_pre_train_matrix(encoder_state)
 			logVar_fine_tune = self.logVar_pre_train_matrix(encoder_state)
-		with tf.variabel_scope('transfer'):
+		with tf.variable_scope('transfer'):
 			self.transfer_mean = tf.layers.Dense(self.num_units, activation=tf.nn.relu)
 			self.transfer_logVar = tf.layers.Dense(self.num_units, activation=tf.nn.relu)
 			self.mean_transfer = self.transfer_mean(mean_fine_tune)
 			self.logVar_trainsfer = self.transfer_logVar(logVar_fine_tune)
-		eps = tf.random_normal([sample_norm_shape[0], sample_norm_shape[1], self.num_units], 0.0, 1.0, dtypt=tf.float32)		
+		eps = tf.random_normal([sample_norm_shape[0], sample_norm_shape[1], self.num_units], 0.0, 1.0, dtype=tf.float32)		
 		z = self.mean_transfer + tf.exp(0.5 * self.logVar_trainsfer) * eps
 		return z
 
@@ -482,7 +493,8 @@ class BaseModel(object):
 
 		# vae loss
 		if self.enable_vae:
-			kl_loss = tf.cond(self.pre_train, lambda : self._vae_loss(bs), lambda : 0.)
+			kl_loss = tf.cond(tf.cast(self.pre_train, dtype=tf.bool), 
+							  lambda : self._vae_loss(bs), lambda : 0.)
 			loss = ce_loss_clear + kl_loss
 			return loss, loss_per_token, kl_loss
 		else:
@@ -504,7 +516,7 @@ class BaseModel(object):
 					   name='learning_rate_warm_decay_cond')
 	
 	def _get_train_summary(self):
-		# TODO
+		# TODO	Implemented this above
 		pass
 		
 	def train(self, sess, realv):
@@ -516,7 +528,8 @@ class BaseModel(object):
 										predict_count=self.predict_count,
 										global_step=self.global_step,
 										batch_size=self.batch_size,
-										learning_rate=self.learning_rate)
+										learning_rate=self.learning_rate,
+										train_summary=self.train_summary)
 		feed_dict = {self.encoder_input_data: realv[0],
 					 self.decoder_input_data: realv[1],
 					 self.decoder_output_data: realv[2],
@@ -528,7 +541,8 @@ class BaseModel(object):
 	def eval(self, sess, realv):
 		"""Build eval graph"""
 		assert self.mode == 'eval'
-		output_tuple = EvalOutputTuple(eval_loss=self.loss,
+		output_tuple = EvalOutputTuple(sample_id=self.sample_id,
+									   eval_loss=self.loss,
 									   predict_count=self.predict_count,
 									   batch_size=self.batch_size)
 		feed_dict = {self.encoder_input_data: realv[0],
@@ -536,7 +550,7 @@ class BaseModel(object):
 					 self.decoder_output_data: realv[2],
 					 self.seq_length_encoder_intput_data: realv[3],
 					 self.seq_length_decoder_input_data: realv[4]}
-		return sess.run([self.update, output_tuple], feed_dict=feed_dict)
+		return sess.run(output_tuple, feed_dict=feed_dict)
 
 	def infer(self, sess, realv):
 		assert self.mode == 'infer'

@@ -30,21 +30,21 @@ def reset_statistic(stats):
 	stats['loss'] = 0.
 	stats['count'] = 0
 	
-def train(hparams, datas, scope=None):
+def train(hparams, datas=None, scope=None):
 	"""build the train process"""
 	
 	# 1. create the model
 	model_creator = select_model_creator(hparams)
 	train_model = _mh.create_model(model_creator, hparams, 'train')
 	# eval_model = _mh.create_model(model_creator, hparams, 'eval')
-	# infer_model = _mh.create_model(model_creator, hparams, 'infer')
+	infer_model = _mh.create_model(model_creator, hparams, 'infer')
 
 	# 2. create the session
 	sess_conf = tf.ConfigProto(intra_op_parallelism_threads=8, inter_op_parallelism_threads=8)
 	sess_conf.gpu_options.allow_growth = True
 	train_sess = tf.Session(config=sess_conf, graph=train_model.graph)
 	# eval_sess = tf.Session(config=sess_conf, graph=eval_model.graph)
-	# infer_sess = tf.Session(config=sess_conf, graph=infer_model.graph)
+	infer_sess = tf.Session(config=sess_conf, graph=infer_model.graph)
 
 	with train_model.graph.as_default():
 		loaded_train_model, global_step = _mh.create_or_load_model(
@@ -60,17 +60,25 @@ def train(hparams, datas, scope=None):
 	while global_step < num_steps:
 		# TODO iterate on the dataset, each global_step is the batch_size
 		# when loop a batch, update the global_step,  could obtain from the model
-		# datas = None
-		feed_dict = datas
+		
+		if datas is None:
+			_error('Feeding data function has not been writen')
+			raise NotImplementedError
+		else:
+			feed_dict = datas
 		res = loaded_train_model.train(train_sess, feed_dict)
 		_info('STEP : {} \n\t LOSS : {:2f} LOSS_PER : {:2f} KL_LOSS : {:2f}'.format(
 			global_step, res[1].train_loss, res[1].loss_per_token, res[1].kl_loss))
+		
+		# add loss record to tensorboard
 		global_step = res[1].global_step
+		summary_writer.add_summary(res[1].train_summary, global_step)
 		
 		# update statistic
 		statistic(res[1].train_loss, res[1].predict_count, batch_size, stats)
 
 		if global_step % 100 == 0:
+			# calculate Perplexity
 			try:
 				ppl = math.exp(stats['loss'] / stats['count'])
 			except OverflowError:
@@ -78,6 +86,12 @@ def train(hparams, datas, scope=None):
 			finally:
 				_info('Perplexity : {:2f}'.format(ppl))
 				reset_statistic(stats)
+			
+			# evaluate the model
+			res_infer = infer(hparams, datas=[datas[0], datas[3]])
+			# TODO idx -> str
+			print(res_infer)
+			input()		
 		
 		if global_step % hparams.save_batch == 0:
 			loaded_train_model.saver.save(
@@ -87,6 +101,24 @@ def train(hparams, datas, scope=None):
 			_info('Save model at step {}th'.format(global_step))
 	
 	summary_writer.close()
+
+def infer(hparams, datas=None):
+	model_creator = select_model_creator(hparams)
+	infer_model = _mh.create_model(model_creator, hparams, 'infer')
+	sess_conf = tf.ConfigProto(intra_op_parallelism_threads=8, inter_op_parallelism_threads=8)
+	sess_conf.gpu_options.allow_growth = True
+	infer_sess = tf.Session(config=sess_conf, graph=infer_model.graph)
+
+	with infer_model.graph.as_default():
+		loaded_infer_model, global_step = _mh.create_or_load_model(
+			infer_model.model, hparams.out_dir, infer_sess)
+	
+	if datas is None:
+		_error('Feeding data funtion has not been writen')
+		raise NotImplementedError
+	res = loaded_infer_model.infer(infer_sess, datas)
+
+	return res.sample_id
 
 if __name__ == '__main__':
 	import numpy as np
@@ -101,17 +133,5 @@ if __name__ == '__main__':
 	datas = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
 	train(hparams, datas)
 	
-	# # Infer test
-	# model_creator = select_model_creator(hparams)
-	# infer_model = _mh.create_model(model_creator, hparams, 'infer')
-	# sess_conf = tf.ConfigProto(intra_op_parallelism_threads=8, inter_op_parallelism_threads=8)
-	# sess_conf.gpu_options.allow_growth = True
-	# infer_sess = tf.Session(config=sess_conf, graph=infer_model.graph)
-	
-	# data = [input_x, seq_input_x]
-	# with infer_model.graph.as_default():
-	# 	loaded_infer_model, global_step = _mh.create_or_load_model(
-	# 		infer_model.model, hparams.out_dir, infer_sess)
-	
-	# res = loaded_infer_model.infer(infer_sess, data)
-	# print(res.sample_id)
+	# res = infer(hparams, datas=[input_x, seq_input_x])
+	# print(res)
