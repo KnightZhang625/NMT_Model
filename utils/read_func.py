@@ -15,6 +15,10 @@ def read_json(path):
     data_json = []
     with codecs.open(path, 'r', 'utf-8') as file:
         #TODO loading the entire json will lead to 'out of memory' problem 
+        for line in file:
+            data_temp = json.loads(line)
+            print(data_temp)
+            input()            
         data = file.read().split('\n')
     # extracting the 'content' block
     data_json.extend([json.loads(d)['content'] for d in data])
@@ -34,9 +38,11 @@ if __name__ == '__main__':
     from pathlib import Path
     
     cur_path = Path(__file__).absolute().parent.parent
-    # data_path = cur_path / 'data/news_valid.json'
-    # read_json(data_path)
+    data_path = cur_path / 'data/news_valid.json'
+    read_json(data_path)
 
+
+    '''
     data_path = cur_path / 'data/vocab.data'
     vocab_idx, idx_vocab = load_vocab(data_path)
 
@@ -44,3 +50,4 @@ if __name__ == '__main__':
          codecs.open(cur_path / 'data/idx_vocab.pickle', 'wb') as file_2:
          pickle.dump(vocab_idx, file_1)
          pickle.dump(idx_vocab, file_2)
+    '''
