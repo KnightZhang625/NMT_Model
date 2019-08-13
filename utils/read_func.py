@@ -14,7 +14,8 @@ def read_json(path):
     """read data whose format is 'json'"""
     data_json = []
     with codecs.open(path, 'r', 'utf-8') as file:
-        data = file.read().split('\n')[:10]
+        #TODO loading the entire json will lead to 'out of memory' problem 
+        data = file.read().split('\n')
     # extracting the 'content' block
     data_json.extend([json.loads(d)['content'] for d in data])
     
