@@ -4,41 +4,65 @@
 
 """"this file used for loading data"""
 
+import os
+import gc
+import sys
 import json
 import codecs
 import pickle
 
 from pathlib import Path
 cur_path = Path(__file__).absolute().parent.parent
-save_path = cur_path / 'data/json_seperate/'
+save_path = cur_path / 'data/json_seperate'
+sys.path.insert(0, str(cur_path))
+
+from utils.log import log_info as _info
+from utils.log import log_error as _error
 
 __all__ = ['read_json']
-
-
-
+ 
 def read_json(path):
     """read data whose format is 'json'"""
     data_json = []
     with codecs.open(path, 'r', 'utf-8') as file:
-        #TODO loading the entire json will lead to 'out of memory' problem 
-        for line in file:
-            data_temp = json.loads(line)
-            print(data_temp)
-            input()            
-        data = file.read().split('\n')
-    # extracting the 'content' block
-    data_json.extend([json.loads(d)['content'] for d in data])
-    
+        _read_json_block(file)
+
     return data_json
 
 def _read_json_block(file):
-    """solve the problem which the Json file is too large"""
+    """solve the problem where the Json file is too large"""
     count = 1
-    threshold = 100     # divide the Json into threshold files
+    data_temp = []
+    total = 0
+    save_path_block = str(save_path) + '/json_block_{}.pickle'.format(str(count))
+    
+    # check whether the files have been created or not
+    if save_path_block.split('/')[-1] in os.listdir(save_path):
+        _error('{} exits'.format(save_path_block))
+        raise FileExistsError
+
     for line in file:
-        save_path_block = str(save_path) + 'json_block_{}'.format(str(count))
-        with codecs.open(save_path_block, 'w', 'utf-8') as file:
-            pass
+        if len(data_temp) == 25000:
+            data_temp.append(json.loads(line)['content'])       # remember to add the 25001th data
+            with codecs.open(save_path_block, 'wb') as file:
+                pickle.dump(data_temp, file)
+            _info('Save the {}'.format(save_path_block))
+            count += 1
+            total += len(data_temp)
+            del data_temp
+            gc.collect()            
+            data_temp = []
+            save_path_block = str(save_path) + '/json_block_{}.pickle'.format(str(count))
+        else:
+            try:
+                data_temp.append(json.loads(line)['content'])
+            except json.decoder.JSONDecodeError:
+                _error('The line: {} has no <content>'.format(line))
+    if len(data_temp) != 0:
+        with codecs.open(save_path_block, 'wb') as file:
+            pickle.dump(data_temp, file)
+        _info('Save the {}'.format(save_path_block))        
+    total += len(data_temp)   
 
 def load_vocab(path):
     """load the vocab"""
@@ -52,10 +76,10 @@ def load_vocab(path):
 if __name__ == '__main__':
     from pathlib import Path
     
+    # load the Json and seperate it into different files
     cur_path = Path(__file__).absolute().parent.parent
-    data_path = cur_path / 'data/news_valid.json'
+    data_path = cur_path / 'data/news_train.json'
     read_json(data_path)
-
 
     '''
     data_path = cur_path / 'data/vocab.data'
@@ -66,3 +90,8 @@ if __name__ == '__main__':
          pickle.dump(vocab_idx, file_1)
          pickle.dump(idx_vocab, file_2)
     '''
+
+    # json_path = cur_path / 'data/json_seperate/json_block_4.pickle'
+    # with codecs.open(json_path, 'rb') as file:
+    #     data = pickle.load(file)
+    #     print(data[:10])

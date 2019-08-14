@@ -4,11 +4,11 @@
 
 import re
 import sys
+import json
 import pickle
 import codecs
 from itertools import chain
 from pathlib import Path
-from utils.read_func import read_json
 from utils.log import log_info as _info
 from utils.log import log_error as _error
 
@@ -54,7 +54,7 @@ def combine_list(lines):
         results.extend(l)
     return list(filter(_remove, results))
 
-def start_multi(lines, func, p=6, write=False):
+def start_multi(lines, func, p=6, suffix=0, write=False):
     """execute the function in multiprocesses
 
     Args:
@@ -76,7 +76,7 @@ def start_multi(lines, func, p=6, write=False):
         if not write:
             results.append(pool.apply_async(func, (data_b, )))
         else:
-            pool.apply_async(func, (data_b, i))
+            pool.apply_async(func, (data_b, suffix))
     
     if not write:
         for i in range(p):
@@ -103,35 +103,57 @@ def convert_to_idx(lines):
 def wtrie_data(lines, suffix):
     """"save the data as 'save_path + data + suffix' """
     file_path = str(save_path) + '/news_{}'.format(str(suffix))
+    _info('Save {} \n'.format(file_path))
     with codecs.open(file_path, 'w', 'utf-8') as file:
         for line in lines:
             line = list(map(_to_int, line))
             file.write(' '.join(line) + '\n')
             file.flush()
 
+def find_num(file):
+    """used for extract the numbers from the string format file"""
+    number = ''
+    flag = False        # used for terminating the search when meeting the last number 
+    for v in file:
+        try:
+            int(v)      # check whether the string is number or not
+            number += v
+            flag = True
+        except ValueError:
+            if flag:
+                break
+    return int(number)
+
 if __name__ == '__main__':
+    import os
     import time
-    from pathlib import Path
     
+    # 1. find out the Json files
     cur_path = Path(__file__).absolute().parent
-    data_path = cur_path / 'data/news_valid.json'
-    lines = read_json(data_path)
-    print(lines)
+    data_path = cur_path / 'data/json_seperate/'
+    json_lists = sorted(os.listdir(data_path), key=find_num)    # sort the file by the actual order
+
 
     time_start = time.time()
-    # 1. clean and split the data
-    lines = start_multi(lines, process)
-    lines = combine_list(lines)     # IMPORTANT
-    _info('Finish clean and split the data, total: {}'.format(len(lines)))
     
-    # 2. convert str to idx
-    lines = start_multi(lines, convert_to_idx)
-    _info('Finish converting str to idx, total: {}'.format(len(lines)))
-    time_end = time.time()
-    _info('Processing takes {:2f}s time'.format(time_end - time_start))
+    for file in json_lists:
+        _info('Processsing {}'.format(file))
+        suffix = find_num(file)
+        with codecs.open(data_path / file, 'rb') as file:
+             lines = pickle.load(file)
+        # 1. clean and split the data
+        lines = start_multi(lines, process)
+        lines = combine_list(lines)     # IMPORTANT
+        _info('Finish clean and split the data, total: {}'.format(len(lines)))
+        
+        # 2. convert str to idx
+        lines = start_multi(lines, convert_to_idx)
+        _info('Finish converting str to idx, total: {}'.format(len(lines)))
+        time_end = time.time()
+        _info('Processing takes {:2f}s time'.format(time_end - time_start))
 
-    # 3. save the data
-    start_multi(lines, wtrie_data, 3, True)
+        # 3. save the data
+        start_multi(lines, wtrie_data, p=1, suffix=suffix, write=True)
 
 
     # # just for test
