@@ -49,6 +49,7 @@ def iter_data(path):
         for bn in range(batch_number):
             data_block = data[bn * BATCH_SIZE : bn * BATCH_SIZE + BATCH_SIZE]
             data_block = list(map(_convert_str_to_int, data_block))
+            # TODO create data from data_block
             yield data_block
         # if not, random sample data from the rest to let the length equal to the batch size
         if not divide_or_not:
@@ -59,6 +60,7 @@ def iter_data(path):
             except ValueError:
                 data_sup = [random.choice(data_block) for _ in range(BATCH_SIZE - len(data_block))]
             data_block += data_sup
+            # TODO create data from data_block
             yield data_block
     
 if __name__ == '__main__':
