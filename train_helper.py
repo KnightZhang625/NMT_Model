@@ -39,6 +39,7 @@ def iter_data(path):
         with codecs.open(str(dir_path / file_name), 'r', 'utf-8') as file:
             data = file.read().split('\n')[:-1]
         
+        # check whether the length of data could be divided by the batch size or not
         if len(data) % BATCH_SIZE != 0:
             divide_or_not = False
         else:
@@ -49,6 +50,7 @@ def iter_data(path):
             data_block = data[bn * BATCH_SIZE : bn * BATCH_SIZE + BATCH_SIZE]
             data_block = list(map(_convert_str_to_int, data_block))
             yield data_block
+        # if not, random sample data from the rest to let the length equal to the batch size
         if not divide_or_not:
             bn +=1
             data_block = data[bn * BATCH_SIZE : ]
