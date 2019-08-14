@@ -2,6 +2,7 @@
 # Produced by Andysin Zhang
 # 13_Aug_2019
 
+import os
 import re
 import sys
 import json
@@ -103,6 +104,10 @@ def convert_to_idx(lines):
 def wtrie_data(lines, suffix):
     """"save the data as 'save_path + data + suffix' """
     file_path = str(save_path) + '/news_{}'.format(str(suffix))
+    if file_path.split('/')[-1] in os.listdir(save_path):
+        _error('{} exists'.format(file_path))
+        raise FileExistsError
+
     _info('Save {} \n'.format(file_path))
     with codecs.open(file_path, 'w', 'utf-8') as file:
         for line in lines:
@@ -157,7 +162,7 @@ if __name__ == '__main__':
 
 
     # # just for test
-    # for i in range(3):
+    # for i in range(2, 3):
     #     temp_path = save_path / 'news_{}'.format(i)
     #     with codecs.open(temp_path, 'r', 'utf-8') as file:
     #         lines = file.read().split('\n')[:-1]
@@ -166,3 +171,4 @@ if __name__ == '__main__':
     #             for idx in l.split(' '):
     #                 str += idx_vocab[int(idx)]
     #             print(str)
+    #             sys.exit()
