@@ -530,11 +530,11 @@ class BaseModel(object):
 										batch_size=self.batch_size,
 										learning_rate=self.learning_rate,
 										train_summary=self.train_summary)
-		feed_dict = {self.encoder_input_data: realv[0],
-					 self.decoder_input_data: realv[1],
-					 self.decoder_output_data: realv[2],
-					 self.seq_length_encoder_intput_data: realv[3],
-					 self.seq_length_decoder_input_data: realv[4]}
+		feed_dict = {self.encoder_input_data: realv.encoder_input_data,
+					 self.decoder_input_data: realv.decoder_input_data,
+					 self.decoder_output_data: realv.decoder_output_data,
+					 self.seq_length_encoder_intput_data: realv.seq_length_encoder_data,
+					 self.seq_length_decoder_input_data: realv.seq_length_decoder_data}
 
 		return sess.run([self.update, output_tuple], feed_dict=feed_dict)
 	
@@ -556,8 +556,8 @@ class BaseModel(object):
 		assert self.mode == 'infer'
 		output_tuple = InferOutputTuple(infer_logits=self.infer_logtis,
 										sample_id=self.sample_id)
-		feed_dict = {self.encoder_input_data: realv[0],
-					 self.seq_length_encoder_intput_data: realv[1]}
+		feed_dict = {self.encoder_input_data: realv.encoder_input_data,
+					 self.seq_length_encoder_data: realv.seq_length_data}
 		return sess.run(output_tuple,feed_dict=feed_dict)
 
 if __name__ == '__main__':

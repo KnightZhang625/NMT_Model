@@ -7,17 +7,32 @@ import sys
 import codecs
 import pickle
 import random
+import collections
+import tensorflow as tf
+from pathlib import Path
 
 from hparameters import hparams
 from preprocess import find_num
 from utils.log import log_info as _info
 from utils.log import log_error as _error
 
+cur_path = Path(__file__).absolute().parent
+
+__file__ = ['iter_data']
+
 # BATCH_SIZE = hparams.batch_size
 BATCH_SIZE = 5
+SOS = hparams.sos_id
+EOS = hparams.eos_id
+PAD = hparams.padding_id
 
-i_s = lambda s : str(s)
-test = lambda l : ' '.join(list(map(i_s, l)))
+class DataTuple(collections.namedtuple('data',
+                                'encoder_input_data \
+                                 decoder_input_data \
+                                 decoder_output_data \
+                                 seq_length_encoder_data \
+                                 seq_length_decoder_data')):
+    pass
 
 def _find_files(path):
     """return the files in the given directory and the directory"""
@@ -28,6 +43,31 @@ def  _convert_str_to_int(string):
     """convert string to int"""
     return [int(s) for s in string.split(' ')]
     
+insert_sos = lambda l : [SOS] + l
+insert_eos = lambda l : l + [EOS]
+
+def _create_data(data):
+    """used for creating inputs, outputs, seq_len"""
+    encoder_input_data = data
+    decoder_input_data = list(map(insert_sos, data))
+    decoder_output_data = list(map(insert_eos, data))
+    seq_length_encoder_data = [len(d) for d in encoder_input_data]
+    seq_length_decoder_data = [len(d) for d in decoder_input_data]
+
+    encoder_input_data = tf.keras.preprocessing.sequence.pad_sequences(
+        encoder_input_data, padding='post', value=PAD)
+    decoder_input_data = tf.keras.preprocessing.sequence.pad_sequences(
+        decoder_input_data, padding='post', value=PAD)
+    decoder_output_data = tf.keras.preprocessing.sequence.pad_sequences(
+        decoder_output_data, padding='post', value=PAD)
+
+    data_tuple = DataTuple(encoder_input_data=encoder_input_data,
+                           decoder_input_data=decoder_input_data,
+                           decoder_output_data=decoder_output_data,
+                           seq_length_encoder_data=seq_length_encoder_data,
+                           seq_length_decoder_data=seq_length_decoder_data)
+    return data_tuple
+
 def iter_data(path):
     """load the data with batch size for training"""
     data_bz = []
@@ -49,8 +89,7 @@ def iter_data(path):
         for bn in range(batch_number):
             data_block = data[bn * BATCH_SIZE : bn * BATCH_SIZE + BATCH_SIZE]
             data_block = list(map(_convert_str_to_int, data_block))
-            # TODO create data from data_block
-            yield data_block
+            yield _create_data(data_block)
         # if not, random sample data from the rest to let the length equal to the batch size
         if not divide_or_not:
             bn +=1
@@ -58,20 +97,17 @@ def iter_data(path):
             try:
                 data_sup = random.sample(data_block, BATCH_SIZE - len(data_block))
             except ValueError:
+                # except the circumstance where the sample number is larger then the original length
                 data_sup = [random.choice(data_block) for _ in range(BATCH_SIZE - len(data_block))]
             data_block += data_sup
-            # TODO create data from data_block
-            yield data_block
+            data_block = list(map(_convert_str_to_int, data_block))
+            yield _create_data(data_block)
     
 if __name__ == '__main__':
-    from pathlib import Path
-
-    cur_path = Path(__file__).absolute().parent
     data_path = cur_path / 'data/news_data'
 
+    # i_s = lambda s : str(s)
+    # test = lambda l : ' '.join(list(map(i_s, l)))
+
     for data in iter_data(data_path):
-        d = list(data)
-        dd = list(map(test, d))
-        print(len(dd))
-        print(len(set(dd)))
-        input()
+        print('success')
