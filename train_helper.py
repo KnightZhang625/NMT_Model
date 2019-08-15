@@ -9,6 +9,7 @@ import pickle
 import random
 import collections
 import tensorflow as tf
+import numpy as np
 from pathlib import Path
 
 from hparameters import hparams
@@ -54,12 +55,12 @@ def _create_data(data):
     seq_length_encoder_data = [len(d) for d in encoder_input_data]
     seq_length_decoder_data = [len(d) for d in decoder_input_data]
 
-    encoder_input_data = tf.keras.preprocessing.sequence.pad_sequences(
-        encoder_input_data, padding='post', value=PAD)
-    decoder_input_data = tf.keras.preprocessing.sequence.pad_sequences(
-        decoder_input_data, padding='post', value=PAD)
-    decoder_output_data = tf.keras.preprocessing.sequence.pad_sequences(
-        decoder_output_data, padding='post', value=PAD)
+    encoder_input_data = np.array(tf.keras.preprocessing.sequence.pad_sequences(
+        encoder_input_data, padding='post', value=PAD))
+    decoder_input_data = np.array(tf.keras.preprocessing.sequence.pad_sequences(
+        decoder_input_data, padding='post', value=PAD))
+    decoder_output_data = np.array(tf.keras.preprocessing.sequence.pad_sequences(
+        decoder_output_data, padding='post', value=PAD))
 
     data_tuple = DataTuple(encoder_input_data=encoder_input_data,
                            decoder_input_data=decoder_input_data,
