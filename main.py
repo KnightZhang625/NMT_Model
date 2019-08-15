@@ -119,16 +119,16 @@ def infer(hparams, datas=None):
 	return res.sample_id
 
 if __name__ == '__main__':
-	import numpy as np
+	# import numpy as np
 	from hparameters import hparams
 
-	input_x = np.array([[10, 120, 30, 0, 0], [20, 30, 0, 0, 0], [15, 20, 30, 50, 100]])
-	seq_input_x = [3, 2, 5]
-	output_y_input = np.array([[1, 20, 10, 30, 0, 0, 0], [1, 3, 3, 4, 5, 6, 7], [1, 20, 30, 0, 0, 0, 0]])
-	output_y_output = np.array([[20, 10, 30, 2, 0, 0, 0], [3, 3, 4, 5, 6, 7, 2], [20, 30, 2, 0, 0, 0, 0]])
-	seq_output_y = [4, 7, 3]
+	# input_x = np.array([[10, 120, 30, 0, 0], [20, 30, 0, 0, 0], [15, 20, 30, 50, 100]])
+	# seq_input_x = [3, 2, 5]
+	# output_y_input = np.array([[1, 20, 10, 30, 0, 0, 0], [1, 3, 3, 4, 5, 6, 7], [1, 20, 30, 0, 0, 0, 0]])
+	# output_y_output = np.array([[20, 10, 30, 2, 0, 0, 0], [3, 3, 4, 5, 6, 7, 2], [20, 30, 2, 0, 0, 0, 0]])
+	# seq_output_y = [4, 7, 3]
 	
-	datas = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
+	# datas = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
 	train(hparams, datas)
 	
 	# res = infer(hparams, datas=[input_x, seq_input_x])
