@@ -21,8 +21,7 @@ cur_path = Path(__file__).absolute().parent
 
 __file__ = ['iter_data']
 
-# BATCH_SIZE = hparams.batch_size
-BATCH_SIZE = 5
+BATCH_SIZE = hparams.batch_size
 SOS = hparams.sos_id
 EOS = hparams.eos_id
 PAD = hparams.padding_id
@@ -93,7 +92,7 @@ def iter_data(path):
             yield _create_data(data_block)
         # if not, random sample data from the rest to let the length equal to the batch size
         if not divide_or_not:
-            bn +=1
+            bn = batch_number
             data_block = data[bn * BATCH_SIZE : ]
             try:
                 data_sup = random.sample(data_block, BATCH_SIZE - len(data_block))

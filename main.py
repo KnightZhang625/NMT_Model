@@ -129,7 +129,7 @@ if __name__ == '__main__':
 	# seq_output_y = [4, 7, 3]
 	
 	# datas = [input_x, output_y_input, output_y_output, seq_input_x, seq_output_y]
-	train(hparams, datas)
+	train(hparams)
 	
 	# res = infer(hparams, datas=[input_x, seq_input_x])
 	# print(res)

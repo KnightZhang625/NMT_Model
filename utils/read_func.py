@@ -78,18 +78,16 @@ if __name__ == '__main__':
     
     # load the Json and seperate it into different files
     cur_path = Path(__file__).absolute().parent.parent
-    data_path = cur_path / 'data/news_train.json'
-    read_json(data_path)
+    # data_path = cur_path / 'data/news_train.json'
+    # read_json(data_path)
 
-    '''
     data_path = cur_path / 'data/vocab.data'
     vocab_idx, idx_vocab = load_vocab(data_path)
 
-    with codecs.open(cur_path / 'data/vocab_idx.pickle', 'wb') as file_1, \
-         codecs.open(cur_path / 'data/idx_vocab.pickle', 'wb') as file_2:
-         pickle.dump(vocab_idx, file_1)
-         pickle.dump(idx_vocab, file_2)
-    '''
+    with codecs.open(cur_path / 'data/vocab_idx.pkl', 'wb') as file_1, \
+         codecs.open(cur_path / 'data/idx_vocab.pkl', 'wb') as file_2:
+         pickle.dump(vocab_idx, file_1, protocol=2)
+         pickle.dump(idx_vocab, file_2, protocol=2)
 
     # json_path = cur_path / 'data/json_seperate/json_block_4.pickle'
     # with codecs.open(json_path, 'rb') as file:

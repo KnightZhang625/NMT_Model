@@ -89,7 +89,7 @@ class BaseModel(object):
 			tf.int32, [None, None], name='decoder_input_data')
 		self.decoder_output_data = tf.placeholder(
 			tf.int32, [None, None], name='decoder_output_data')
-		self.seq_length_encoder_intput_data = tf.placeholder(
+		self.seq_length_encoder_input_data = tf.placeholder(
 			tf.int32, [None], name='seq_length_encoder_input_data')
 		self.seq_length_decoder_input_data = tf.placeholder(
 			tf.int32, [None], name='seq_length_decoder_input_data')
@@ -102,7 +102,7 @@ class BaseModel(object):
 		self.num_encoder_residual_layers = self.num_encoder_layers - 1
 		self.num_decoder_residual_layers = self.num_decoder_layers - 1
 
-		self.batch_size = tf.size(self.seq_length_encoder_intput_data)
+		self.batch_size = tf.size(self.seq_length_encoder_input_data)
 
 		# set initializer
 		random_seed = hparams.random_seed
@@ -237,7 +237,7 @@ class BaseModel(object):
 					cell,
 					self.encoder_emb_inp,
 					dtype=self.dtype,
-					sequence_length=self.seq_length_encoder_intput_data,
+					sequence_length=self.seq_length_encoder_input_data,
 					swap_memory=True)
 			elif hparams.encoder_type == 'bi':
 				if not num_layers % 2 == 0:
@@ -257,7 +257,7 @@ class BaseModel(object):
 					cell_bw,
 					self.encoder_emb_inp,
 					dtype=self.dtype,
-					sequence_length=self.seq_length_encoder_intput_data,
+					sequence_length=self.seq_length_encoder_input_data,
 					swap_memory=True)
 
 				if num_bi_layers == 1:
@@ -533,7 +533,7 @@ class BaseModel(object):
 		feed_dict = {self.encoder_input_data: realv.encoder_input_data,
 					 self.decoder_input_data: realv.decoder_input_data,
 					 self.decoder_output_data: realv.decoder_output_data,
-					 self.seq_length_encoder_intput_data: realv.seq_length_encoder_data,
+					 self.seq_length_encoder_input_data: realv.seq_length_encoder_data,
 					 self.seq_length_decoder_input_data: realv.seq_length_decoder_data}
 
 		return sess.run([self.update, output_tuple], feed_dict=feed_dict)
@@ -548,7 +548,7 @@ class BaseModel(object):
 		feed_dict = {self.encoder_input_data: realv[0],
 					 self.decoder_input_data: realv[1],
 					 self.decoder_output_data: realv[2],
-					 self.seq_length_encoder_intput_data: realv[3],
+					 self.seq_length_encoder_input_data: realv[3],
 					 self.seq_length_decoder_input_data: realv[4]}
 		return sess.run(output_tuple, feed_dict=feed_dict)
 

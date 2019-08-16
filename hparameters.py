@@ -16,7 +16,7 @@ class HyperParameters(NoNewAttrs):
     data_path = DATA_PATH
     summary_name = 'test'
     train_steps = 10000000
-    batch_size = 300
+    batch_size = 64
     save_batch = 100
     decay_step = save_batch
     init_op = 'orthogonal'
@@ -40,7 +40,7 @@ class HyperParameters(NoNewAttrs):
     tgt_max_len_infer = None
     encoder_type = 'bi'
     unit_type = 'gru'
-    num_units = int(512)
+    num_units = int(1024)
     infer_mode = 'greedy'
 
     attention = None
