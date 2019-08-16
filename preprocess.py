@@ -111,9 +111,12 @@ def wtrie_data(lines, suffix):
     _info('Save {} \n'.format(file_path))
     with codecs.open(file_path, 'w', 'utf-8') as file:
         for line in lines:
-            line = list(map(_to_int, line))
-            file.write(' '.join(line) + '\n')
-            file.flush()
+            # if TPU available, no need to cut the sentences with long length,
+            # However, Do you think we could use TPU for training ?
+            if len(line) <= 50:
+                line = list(map(_to_int, line))
+                file.write(' '.join(line) + '\n')
+                file.flush()
 
 def find_num(file):
     """used for extract the numbers from the string format file"""
