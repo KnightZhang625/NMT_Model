@@ -75,12 +75,14 @@ def start_multi(lines, func, p=6, suffix=0, write=False, pre_train=True):
     if type(lines) is not zip:
         num_each_b = len(lines) // p
     else:
+        # fine tune step, the lines is zip type,
+        # this kind of type has no length, so just set the lines to data_b
         data_b = lines
     
     results = []
     for i in range(p):
         if i < (p-1):
-            if pre_train:
+            if pre_train:   # the reason for adding judgement here is just identical to the above comment
                 data_b = lines[i * num_each_b : i * num_each_b + num_each_b]
         else:
             if pre_train:
