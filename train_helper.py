@@ -129,7 +129,11 @@ def iter_data(path, pre_train=True):
         # open the file, split the files to question and answer
         with codecs.open(path, 'r', 'utf-8') as file:
             lines = file.read().split('\n')
-            lines = list(map(_split_que_ans, lines))
+            try:
+                lines = list(map(_split_que_ans, lines))
+            except IndexError:
+                _error('please delete the last line from the {}'.format(path), head='Index Error')
+                raise IndexError
             _info('Successful open {}'.format(path), 'OPEN FILE')
         # create batches and return them      
         batch_number = len(lines) // BATCH_SIZE
@@ -166,5 +170,6 @@ if __name__ == '__main__':
     # for data in iter_data(data_path):
     #     print('success')
 
-    for data in iter_data('test.txt', pre_train=False):
+    for data in iter_data('test_idx.txt', pre_train=False):
         print(data)
+        input()
