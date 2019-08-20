@@ -489,7 +489,7 @@ class BaseModel(object):
 		# convert to tf.float, otherwise, the following code will not be executed
 		bs = tf.cast(self.batch_size, tf.float32)
 		ce_loss_clear = tf.reduce_sum(ce_loss * target_weights) / bs
-		loss_per_token = ce_loss_clear / tf.reduce_sum(target_weights)
+		loss_per_token = ce_loss_clear * bs / tf.reduce_sum(target_weights)
 
 		# vae loss
 		if self.enable_vae:
@@ -509,7 +509,7 @@ class BaseModel(object):
 		return tf.cond(self.global_step < hparams.warm_steps,
 					   lambda : inv_decay * self.learning_rate,
 					   lambda : tf.train.exponential_decay(self.learning_rate,
-					   									   self.global_step,
+					   									   self.global_step - 200000,
 														   hparams.decay_step,
 														   hparams.decay_rate,
 														   staircase=True),

@@ -25,6 +25,7 @@ BATCH_SIZE = hparams.batch_size
 SOS = hparams.sos_id
 EOS = hparams.eos_id
 PAD = hparams.padding_id
+pre_train = hparams.pre_train
 
 class DataTuple(collections.namedtuple('data',
                                 'encoder_input_data \
@@ -46,11 +47,11 @@ def _find_files(path):
 
 def _convert_str_to_int_fine_tune(data_tuple):
     """different solution to the fine tune step"""
-    question_int = _convert_str_to_int(data_tuple.question)
-    answer_int = _convert_str_to_int(data_tuple.answer)
+    question_int = _convert_str_to_int(data_tuple.question, True)
+    answer_int = _convert_str_to_int(data_tuple.answer, True)
     return QueAnsTuple(question=question_int, answer=answer_int)
 
-def  _convert_str_to_int(string, pre_train=True):
+def  _convert_str_to_int(string, pre_train=pre_train):
     """convert string to int"""
     if pre_train:
         return [int(s) for s in string.split(' ')]
@@ -60,7 +61,7 @@ def  _convert_str_to_int(string, pre_train=True):
 insert_sos = lambda l : [SOS] + l
 insert_eos = lambda l : l + [EOS]
 
-def _create_data(data, pre_train=True):
+def _create_data(data, pre_train=pre_train):
     """used for creating inputs, outputs, seq_len"""
     if pre_train:
         encoder_input_data = data
@@ -90,7 +91,7 @@ def _create_data(data, pre_train=True):
 _split_que_ans = lambda line : QueAnsTuple(question=line.split('=')[0],
                                            answer=line.split('=')[1])
 
-def iter_data(path, pre_train=True):
+def iter_data(path, pre_train=pre_train):
     """load the data with batch size for training"""
     if pre_train:
         data_bz = []
@@ -170,6 +171,6 @@ if __name__ == '__main__':
     # for data in iter_data(data_path):
     #     print('success')
 
-    for data in iter_data('test_idx.txt', pre_train=False):
+    for data in iter_data('data/chat_idx.txt', pre_train=False):
         print(data)
         input()

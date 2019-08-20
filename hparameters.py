@@ -4,7 +4,7 @@
 
 from pathlib import Path
 cur_path = Path(__file__).absolute().parent
-DATA_PATH = cur_path / 'data/news_data'
+DATA_PATH = cur_path / 'data/chat_idx.txt'
 from utils.aux_func import NoNewAttrs
 
 class HyperParameters(NoNewAttrs):
@@ -17,13 +17,13 @@ class HyperParameters(NoNewAttrs):
     summary_name = 'test'
     train_steps = 10000000
     batch_size = 64
-    save_batch = 100
+    save_batch = 1000
     decay_step = save_batch
     init_op = 'orthogonal'
     init_weight = 0.1
 
     # Learning rate
-    learning_rate = 0.0005
+    learning_rate = 0.00005
     lr_limit = 1e-6
     decay_rate = 0.99
     random_seed = None
@@ -54,7 +54,7 @@ class HyperParameters(NoNewAttrs):
 
     # VAE
     enable_vae = True
-    pre_train = True
+    pre_train = False
 
     share_vocab = True
     beam_width = 0

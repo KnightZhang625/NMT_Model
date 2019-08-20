@@ -27,13 +27,10 @@ _remove = lambda line : line != ''
 
 _to_str = lambda int_ : str(int_)
 
-# with codecs.open('data/vocab_idx.pickle', 'rb') as file_1, \
-#      codecs.open('data/idx_vocab.pickle', 'rb') as file_2:
-#      vocab_idx = pickle.load(file_1)
-#      idx_vocab = pickle.load(file_2)
-
-vocab_idx = {'我' : 1, '爱' : 2, '纽' : 3, '约' : 4, '<unk>' : 0}
-
+with codecs.open('data/vocab_idx.pickle', 'rb') as file_1, \
+     codecs.open('data/idx_vocab.pickle', 'rb') as file_2:
+     vocab_idx = pickle.load(file_1)
+     idx_vocab = pickle.load(file_2)
 
 cur_path = Path(__file__).absolute().parent
 save_path = cur_path / 'data/news_data'
@@ -50,7 +47,7 @@ def clean_data(lines):
 def process(lines):
     """put the preprocess steps together"""
     lines = list(map(_clean, lines))
-    lines = list(map(_split, lines))
+    # lines = list(map(_split, lines))
     return lines
 
 def combine_list(lines):
@@ -138,7 +135,7 @@ def wtrie_data(lines, suffix, pre_train):
         if type(lines) is not zip:
             _error('for fine tune, the data type should be zip', head='TYPE ERROR')
             raise TypeError
-        file_path = './test_idx.txt'
+        file_path = 'data/chat_idx.txt'
         with codecs.open(file_path, 'w', 'utf-8') as file:
             for que, ans in lines:
                 que = list(map(_to_str, que))   # IMPORTANT
@@ -216,19 +213,18 @@ if __name__ == '__main__':
 
     _split_que_ans = lambda line : QueAnsTuple(question=line.split('=')[0],
                                                answer=line.split('=')[1])
-    test_path = cur_path / 'test.txt'
+    test_path = cur_path / 'data/chat.txt'
     # read the data and split the question and answer
-    with codecs.open(test_path, 'r', 'utf-8') as file:
+    with codecs.open(str(test_path), 'r', 'utf-8') as file:
         data = file.read().split('\n')
         lines = list(map(_split_que_ans, data))
     # preprocess on the question and answer respectively
     questions = [line.question for line in lines]
     answers = [line.answer for line in lines]
+    assert len(questions) == len(answers)
     ## clean
     questions_clean = start_multi(questions, process)
     answers_clean = start_multi(answers, process)
-    questions_clean = combine_list(questions_clean)
-    answers_clean = combine_list(answers_clean)
     ## convert str to idx
     questions_idx = start_multi(questions_clean, convert_to_idx)
     answers_idx = start_multi(answers_clean, convert_to_idx)
